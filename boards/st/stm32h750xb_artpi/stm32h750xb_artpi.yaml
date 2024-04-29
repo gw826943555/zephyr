@@ -1,0 +1,14 @@
+identifier: stm32h750xb_artpi
+name: RT-Thread STM32H750XB ARTPI
+type: mcu
+arch: arm
+toolchain:
+  - zephyr
+  - gnuarmemb
+  - xtools
+ram: 1024
+flash: 128
+supported:
+  - gpio
+  - dma
+vendor: st
