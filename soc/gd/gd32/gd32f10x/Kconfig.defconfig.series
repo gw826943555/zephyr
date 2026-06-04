@@ -1,0 +1,8 @@
+# Copyright (c) 2026
+# SPDX-License-Identifier: Apache-2.0
+
+if SOC_SERIES_GD32F10X
+
+rsource "Kconfig.defconfig.gd32*"
+
+endif # SOC_SERIES_GD32F10X

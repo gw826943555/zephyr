@@ -1,0 +1,18 @@
+# Copyright (c) 2026
+# SPDX-License-Identifier: Apache-2.0
+
+config SOC_SERIES_GD32F10X
+	bool
+	select SOC_FAMILY_GD_GD32
+	help
+	  Enable support for GigaDevice GD32F10X MCU series (Cortex-M3).
+
+config SOC_SERIES
+	default "gd32f10x" if SOC_SERIES_GD32F10X
+
+config SOC_GD32F103CB
+	bool
+	select SOC_SERIES_GD32F10X
+
+config SOC
+	default "gd32f103cb" if SOC_GD32F103CB
