@@ -1,0 +1,16 @@
+# Copyright (c) 2026
+# SPDX-License-Identifier: Apache-2.0
+
+identifier: gd32f103cb_devkit
+name: GigaDevice GD32F103CB development board
+type: mcu
+arch: arm
+ram: 20
+flash: 128
+toolchain:
+  - zephyr
+  - gnuarmemb
+supported:
+  - gpio
+  - uart
+vendor: gd

@@ -1,0 +1,6 @@
+board:
+  name: gd32f103cb_devkit
+  full_name: GD32F103CB minimal devkit
+  vendor: gd
+  socs:
+    - name: gd32f103cb

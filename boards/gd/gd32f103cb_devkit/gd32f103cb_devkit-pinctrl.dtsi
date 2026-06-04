@@ -1,0 +1,17 @@
+/*
+ * Copyright (c) 2026
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * USART0 on PA9/PA10: AFIO map matches GD32E103 medium-density 48-pin
+ * (see GigaDevice HAL pinmux tables). Re-check for your PCB.
+ */
+
+#include <dt-bindings/pinctrl/gd32e103c(b-8)xx-pinctrl.h>
+
+&pinctrl {
+	usart0_default: usart0_default {
+		group1 {
+			pinmux = <USART0_TX_PA9_NORMP>, <USART0_RX_PA10_NORMP>;
+		};
+	};
+};
