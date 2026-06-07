@@ -17,6 +17,7 @@
 
 #define LIS2DH_REG_WAI			0x0f
 #define LIS2DH_CHIP_ID			0x33
+#define SC7A20_CHIP_ID			0x11
 #define LIS2DH_POR_WAIT_MS		5
 
 #if DT_ANY_INST_ON_BUS_STATUS_OKAY(spi)

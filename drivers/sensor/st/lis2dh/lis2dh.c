@@ -375,7 +375,7 @@ int lis2dh_init_chip(const struct device *dev)
 		return status;
 	}
 
-	if (id != LIS2DH_CHIP_ID) {
+	if (id != LIS2DH_CHIP_ID && id != SC7A20_CHIP_ID) {
 		LOG_ERR("Invalid chip ID: %02x\n", id);
 		return -EINVAL;
 	}
