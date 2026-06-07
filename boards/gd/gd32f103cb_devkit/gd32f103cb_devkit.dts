@@ -35,3 +35,11 @@
 	pinctrl-0 = <&usart0_default>;
 	pinctrl-names = "default";
 };
+
+&spi0 {
+	status = "okay";
+	pinctrl-0 = <&spi0_default>;
+	pinctrl-names = "default";
+	cs-gpios = <&gpiob 0 GPIO_ACTIVE_LOW>;
+};
+
