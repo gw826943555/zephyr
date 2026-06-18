@@ -13,6 +13,7 @@
 #include <zephyr/drivers/pwm.h>
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/drivers/reset.h>
+#include <zephyr/sys/util.h>
 #include <zephyr/sys/util_macro.h>
 
 #include <gd32_timer.h>
@@ -132,6 +133,50 @@ static int pwm_gd32_set_cycles(const struct device *dev, uint32_t channel,
 	return 0;
 }
 
+#ifdef CONFIG_PWM_WITH_DMA
+/* TIMER_DMAINTEN CHxDEN bits for channels 0..3 (see GD32F10x RM, TIMER_DMAINTEN). */
+static const uint32_t pwm_gd32_ch_dma_den[] = {
+	TIMER_DMAINTEN_CH0DEN,
+	TIMER_DMAINTEN_CH1DEN,
+	TIMER_DMAINTEN_CH2DEN,
+	TIMER_DMAINTEN_CH3DEN,
+};
+
+static int pwm_gd32_enable_dma(const struct device *dev, uint32_t channel)
+{
+	const struct pwm_gd32_config *config = dev->config;
+
+	if (channel >= ARRAY_SIZE(pwm_gd32_ch_dma_den)) {
+		return -ENOTSUP;
+	}
+
+	if (channel >= config->channels) {
+		return -EINVAL;
+	}
+
+	TIMER_DMAINTEN(config->reg) |= pwm_gd32_ch_dma_den[channel];
+
+	return 0;
+}
+
+static int pwm_gd32_disable_dma(const struct device *dev, uint32_t channel)
+{
+	const struct pwm_gd32_config *config = dev->config;
+
+	if (channel >= ARRAY_SIZE(pwm_gd32_ch_dma_den)) {
+		return -ENOTSUP;
+	}
+
+	if (channel >= config->channels) {
+		return -EINVAL;
+	}
+
+	TIMER_DMAINTEN(config->reg) &= ~pwm_gd32_ch_dma_den[channel];
+
+	return 0;
+}
+#endif /* CONFIG_PWM_WITH_DMA */
+
 static int pwm_gd32_get_cycles_per_sec(const struct device *dev,
 				       uint32_t channel, uint64_t *cycles)
 {
@@ -146,6 +191,10 @@ static int pwm_gd32_get_cycles_per_sec(const struct device *dev,
 static DEVICE_API(pwm, pwm_gd32_driver_api) = {
 	.set_cycles = pwm_gd32_set_cycles,
 	.get_cycles_per_sec = pwm_gd32_get_cycles_per_sec,
+#ifdef CONFIG_PWM_WITH_DMA
+	.enable_dma = pwm_gd32_enable_dma,
+	.disable_dma = pwm_gd32_disable_dma,
+#endif /* CONFIG_PWM_WITH_DMA */
 };
 
 static int pwm_gd32_init(const struct device *dev)
