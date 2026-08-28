@@ -390,7 +390,8 @@ static int adc_gd32_init(const struct device *dev)
 #if defined(CONFIG_SOC_SERIES_GD32F403) || \
 	defined(CONFIG_SOC_SERIES_GD32VF103) || \
 	defined(CONFIG_SOC_SERIES_GD32F3X0) || \
-	defined(CONFIG_SOC_SERIES_GD32L23X)
+	defined(CONFIG_SOC_SERIES_GD32L23X) || \
+	defined(CONFIG_SOC_SERIES_GD32F10X)
 	/* Set SWRCST as the regular channel external trigger. */
 	ADC_CTL1(cfg->reg) &= ~ADC_CTL1_ETSRC;
 	ADC_CTL1(cfg->reg) |= CTL1_ETSRC(7);
