@@ -145,6 +145,7 @@ static const uint32_t pwm_gd32_ch_dma_den[] = {
 static int pwm_gd32_enable_dma(const struct device *dev, uint32_t channel)
 {
 	const struct pwm_gd32_config *config = dev->config;
+	uint32_t den;
 
 	if (channel >= ARRAY_SIZE(pwm_gd32_ch_dma_den)) {
 		return -ENOTSUP;
@@ -154,7 +155,20 @@ static int pwm_gd32_enable_dma(const struct device *dev, uint32_t channel)
 		return -EINVAL;
 	}
 
-	TIMER_DMAINTEN(config->reg) |= pwm_gd32_ch_dma_den[channel];
+	/*
+	 * GD32F10x TIMER3_CH3 has no usable compare-DMA mapping (DMA0 CH6 is
+	 * hard-wired to TIMER3_UP); arm UPDEN instead of CH3DEN.
+	 */
+#if defined(CONFIG_SOC_SERIES_GD32F10X)
+	if (config->reg == TIMER3 && channel == 3U) {
+		den = TIMER_DMAINTEN_UPDEN;
+	} else
+#endif
+	{
+		den = pwm_gd32_ch_dma_den[channel];
+	}
+
+	TIMER_DMAINTEN(config->reg) |= den;
 
 	return 0;
 }
@@ -162,6 +176,7 @@ static int pwm_gd32_enable_dma(const struct device *dev, uint32_t channel)
 static int pwm_gd32_disable_dma(const struct device *dev, uint32_t channel)
 {
 	const struct pwm_gd32_config *config = dev->config;
+	uint32_t den;
 
 	if (channel >= ARRAY_SIZE(pwm_gd32_ch_dma_den)) {
 		return -ENOTSUP;
@@ -171,7 +186,16 @@ static int pwm_gd32_disable_dma(const struct device *dev, uint32_t channel)
 		return -EINVAL;
 	}
 
-	TIMER_DMAINTEN(config->reg) &= ~pwm_gd32_ch_dma_den[channel];
+#if defined(CONFIG_SOC_SERIES_GD32F10X)
+	if (config->reg == TIMER3 && channel == 3U) {
+		den = TIMER_DMAINTEN_UPDEN;
+	} else
+#endif
+	{
+		den = pwm_gd32_ch_dma_den[channel];
+	}
+
+	TIMER_DMAINTEN(config->reg) &= ~den;
 
 	return 0;
 }
