@@ -20,7 +20,7 @@
 		#size-cells = <0>;
 
 		cpu0: cpu@0 {
-			clock-frequency = <DT_FREQ_M(108)>;
+			clock-frequency = <DT_FREQ_M(120)>;
 			compatible = "arm,cortex-m3";
 			reg = <0>;
 			#address-cells = <1>;

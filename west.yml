@@ -186,7 +186,7 @@ manifest:
         - hal
     - name: hal_gigadevice
       remote: william
-      revision: 4b1a395c01e8aa3a13cf5f311b14073a7491c565
+      revision: 43a23ebac85566700a0f27d9b53a0b27d7f94e81
       path: modules/hal/gigadevice
       groups:
         - hal
