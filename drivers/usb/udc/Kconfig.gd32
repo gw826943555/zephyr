@@ -1,0 +1,28 @@
+# Copyright (c) 2026
+# SPDX-License-Identifier: Apache-2.0
+
+config UDC_GD32
+	bool "GigaDevice GD32 USB device controller driver"
+	default y
+	depends on DT_HAS_GD_GD32_USBD_ENABLED
+	select GPIO if $(dt_compat_any_has_prop,$(DT_COMPAT_GD_GD32_USBD),disconnect-gpios)
+	help
+	  Driver for the USB device controller of the GigaDevice GD32F10x
+	  MCU series. The controller exposes a 512 byte dedicated packet RAM
+	  accessed through a 16-bit buffer descriptor table.
+
+if UDC_GD32
+
+config UDC_GD32_STACK_SIZE
+	int "GD32 USB device controller driver internal thread stack size"
+	default 1024
+	help
+	  GD32 USB device controller driver internal thread stack size.
+
+config UDC_GD32_THREAD_PRIORITY
+	int "GD32 USB device controller driver thread priority"
+	default 8
+	help
+	  GD32 USB device controller driver thread priority.
+
+endif # UDC_GD32

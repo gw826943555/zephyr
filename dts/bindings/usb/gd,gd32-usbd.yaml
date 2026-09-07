@@ -1,0 +1,33 @@
+# Copyright (c) 2026
+# SPDX-License-Identifier: Apache-2.0
+
+description: GigaDevice GD32F10x USB device controller
+
+compatible: "gd,gd32-usbd"
+
+include: [usb-ep.yaml, reset-device.yaml]
+
+properties:
+  reg:
+    required: true
+
+  interrupts:
+    required: true
+
+  ram-size:
+    type: int
+    required: true
+    description: |
+      Size of USB dedicated packet RAM.
+
+  disconnect-gpios:
+    type: phandle-array
+    description: |
+      Some boards use a USB DISCONNECT pin to enable
+      the pull-up resistor on USB Data Positive signal.
+
+  clocks:
+    required: true
+
+  resets:
+    required: true

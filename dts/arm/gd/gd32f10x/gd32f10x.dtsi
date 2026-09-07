@@ -128,6 +128,18 @@
 			status = "disabled";
 		};
 
+		usbd: usbd@40005c00 {
+			compatible = "gd,gd32-usbd";
+			reg = <0x40005c00 0x600>;
+			interrupts = <20 0>;
+			clocks = <&cctl GD32_CLOCK_USBD>;
+			resets = <&rctl GD32_RESET_USBD>;
+			ram-size = <512>;
+			num-bidir-endpoints = <8>;
+			maximum-speed = "full-speed";
+			status = "disabled";
+		};
+
 		spi0: spi@40013000 {
 			compatible = "gd,gd32-spi";
 			reg = <0x40013000 0x400>;

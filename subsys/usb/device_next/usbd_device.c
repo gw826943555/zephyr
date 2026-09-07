@@ -325,13 +325,16 @@ int usbd_enable(struct usbd_context *const uds_ctx)
 	 */
 	ep0_empty = udc_ep_queue_is_empty(uds_ctx->dev, USB_CONTROL_EP_OUT);
 
+	printk("usbd: udc_enable enter\n");
 	ret = udc_enable(uds_ctx->dev);
+	printk("usbd: udc_enable done ret=%d\n", ret);
 	if (ret != 0) {
 		LOG_ERR("Failed to enable controller");
 		goto enable_exit;
 	}
 
 	ret = usbd_preallocate(uds_ctx);
+	printk("usbd: preallocate ret=%d\n", ret);
 	if (ret != 0) {
 		LOG_ERR("Buffer preallocation failed");
 		udc_disable(uds_ctx->dev);
@@ -339,6 +342,7 @@ int usbd_enable(struct usbd_context *const uds_ctx)
 	}
 
 	ret = usbd_init_control_pipe(uds_ctx, ep0_empty);
+	printk("usbd: init_control_pipe ret=%d\n", ret);
 	if (ret != 0) {
 		udc_disable(uds_ctx->dev);
 		goto enable_exit;
@@ -347,6 +351,7 @@ int usbd_enable(struct usbd_context *const uds_ctx)
 	uds_ctx->status.enabled = true;
 
 enable_exit:
+	printk("usbd: usbd_enable exit ret=%d\n", ret);
 	usbd_device_unlock(uds_ctx);
 	k_sched_unlock();
 
@@ -355,6 +360,7 @@ enable_exit:
 
 int usbd_disable(struct usbd_context *const uds_ctx)
 {
+	printk("usbd: usbd_disable called\n");
 	int ret;
 
 	if (!usbd_is_enabled(uds_ctx)) {
