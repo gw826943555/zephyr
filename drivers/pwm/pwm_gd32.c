@@ -52,8 +52,8 @@ struct pwm_gd32_config {
 #define TIMER_CHCTL2_CHXEN(ch) BIT(4U * (ch))
 /** Obtain polarity bit for the given channel */
 #define TIMER_CHCTL2_CHXP(ch) BIT(1U + (4U * (ch)))
-/** Obtain CHCTL0/1 mask for the given channel (0 or 1) */
-#define TIMER_CHCTLX_MSK(ch) (0xFU << (8U * (ch)))
+/** Obtain CHCTL mask for the given channel (0, 1, 2, 3) */
+#define TIMER_CHCTLX_MSK(ch) (0xFU << (8U * (ch % 2U)))
 
 /** Obtain RCU register offset from RCU clock value */
 #define RCU_CLOCK_OFFSET(rcu_clock) ((rcu_clock) >> 6U)
@@ -112,7 +112,7 @@ static int pwm_gd32_set_cycles(const struct device *dev, uint32_t channel,
 	if ((TIMER_CHCTL2(config->reg) & TIMER_CHCTL2_CHXEN(channel)) == 0U) {
 		volatile uint32_t *chctl;
 
-		/* select PWM1 mode, enable OC shadowing */
+		/* select PWM0 mode (active while CNT<CCR), enable OC shadowing */
 		if (channel < 2U) {
 			chctl = &TIMER_CHCTL0(config->reg);
 		} else {
@@ -120,7 +120,7 @@ static int pwm_gd32_set_cycles(const struct device *dev, uint32_t channel,
 		}
 
 		*chctl &= ~TIMER_CHCTLX_MSK(channel);
-		*chctl |= (TIMER_OC_MODE_PWM1 | TIMER_OC_SHADOW_ENABLE) <<
+		*chctl |= (TIMER_OC_MODE_PWM0 | TIMER_OC_SHADOW_ENABLE) <<
 			  (8U * (channel % 2U));
 
 		/* enable channel output */
