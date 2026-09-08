@@ -113,6 +113,14 @@ LOG_MODULE_REGISTER(udc_gd32, CONFIG_UDC_DRIVER_LOG_LEVEL);
 /* 16 bit word size of the packet RAM */
 #define UDC_GD32_RAM_WORD          2U
 
+/*
+ * Number of bidirectional endpoints. This matches the num-bidir-endpoints
+ * property of the controller in devicetree and sizes the per-endpoint
+ * packet-buffer address table (one entry per direction) and the IN state
+ * table. Endpoint index 0 is reserved for the control endpoint.
+ */
+#define UDC_GD32_NUM_EPS           8U
+
 enum {
 	UDC_GD32_EVT_XFER_FINISHED,
 	UDC_GD32_EVT_XFER_NEW,
@@ -155,14 +163,14 @@ struct udc_gd32_data {
 	atomic_t transfer_new;
 	uint8_t setup[8];
 	uint16_t ram_cur;
-	uint16_t buf_addr[16];
-	struct gd32_in_state tx[8];
+	uint16_t buf_addr[2U * UDC_GD32_NUM_EPS];
+	struct gd32_in_state tx[UDC_GD32_NUM_EPS];
 };
 
 static inline int gd32_ep_to_bnum(const uint8_t ep)
 {
 	if (USB_EP_DIR_IS_IN(ep)) {
-		return 16U + USB_EP_GET_IDX(ep);
+		return UDC_GD32_NUM_EPS + USB_EP_GET_IDX(ep);
 	}
 
 	return USB_EP_GET_IDX(ep);
@@ -177,8 +185,8 @@ static inline uint8_t gd32_pull_ep_from_bmsk(uint32_t *const bitmap)
 	bit = find_lsb_set(*bitmap) - 1;
 	*bitmap &= ~BIT(bit);
 
-	if (bit >= 16U) {
-		return USB_EP_DIR_IN | (bit - 16U);
+	if (bit >= UDC_GD32_NUM_EPS) {
+		return USB_EP_DIR_IN | (bit - UDC_GD32_NUM_EPS);
 	} else {
 		return USB_EP_DIR_OUT | bit;
 	}
