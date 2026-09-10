@@ -12,6 +12,7 @@
 #include <zephyr/drivers/clock_control/gd32.h>
 #include <zephyr/kernel.h>
 #include <zephyr/devicetree.h>
+#include <zephyr/drivers/gpio.h>
 #include <zephyr/drivers/pinctrl.h>
 #include <zephyr/drivers/reset.h>
 #include <zephyr/drivers/i2c.h>
@@ -23,6 +24,7 @@
 LOG_MODULE_REGISTER(i2c_gd32, CONFIG_I2C_LOG_LEVEL);
 
 #include "i2c-priv.h"
+#include "i2c_bitbang.h"
 
 /* Bus error */
 #define I2C_GD32_ERR_BERR BIT(0)
@@ -40,6 +42,10 @@ struct i2c_gd32_config {
 	struct reset_dt_spec reset;
 	const struct pinctrl_dev_config *pcfg;
 	void (*irq_cfg_func)(void);
+#ifdef CONFIG_I2C_GD32_BUS_RECOVERY
+	struct gpio_dt_spec scl;
+	struct gpio_dt_spec sda;
+#endif /* CONFIG_I2C_GD32_BUS_RECOVERY */
 };
 
 struct i2c_gd32_data {
@@ -487,15 +493,13 @@ static int i2c_gd32_transfer(const struct device *dev,
 	return err;
 }
 
-static int i2c_gd32_configure(const struct device *dev,
-			      uint32_t dev_config)
+static int i2c_gd32_runtime_configure(const struct device *dev,
+				      uint32_t dev_config)
 {
 	struct i2c_gd32_data *data = dev->data;
 	const struct i2c_gd32_config *cfg = dev->config;
 	uint32_t pclk1, freq, clkc;
 	int err = 0;
-
-	k_sem_take(&data->bus_mutex, K_FOREVER);
 
 	/* Disable I2C device */
 	I2C_CTL0(cfg->reg) &= ~I2C_CTL0_I2CEN;
@@ -636,14 +640,146 @@ static int i2c_gd32_configure(const struct device *dev,
 
 	data->dev_config = dev_config;
 error:
+	return err;
+}
+
+static int i2c_gd32_configure(const struct device *dev,
+			      uint32_t dev_config)
+{
+	struct i2c_gd32_data *data = dev->data;
+	int err;
+
+	k_sem_take(&data->bus_mutex, K_FOREVER);
+
+	err = i2c_gd32_runtime_configure(dev, dev_config);
+
 	k_sem_give(&data->bus_mutex);
 
 	return err;
 }
 
+#ifdef CONFIG_I2C_GD32_BUS_RECOVERY
+static void i2c_gd32_bitbang_set_scl(void *io_context, int state)
+{
+	const struct i2c_gd32_config *config = io_context;
+
+	gpio_pin_set_dt(&config->scl, state);
+}
+
+static void i2c_gd32_bitbang_set_sda(void *io_context, int state)
+{
+	const struct i2c_gd32_config *config = io_context;
+
+	gpio_pin_set_dt(&config->sda, state);
+}
+
+static int i2c_gd32_bitbang_get_sda(void *io_context)
+{
+	const struct i2c_gd32_config *config = io_context;
+
+	return gpio_pin_get_dt(&config->sda) == 0 ? 0 : 1;
+}
+
+static int i2c_gd32_recover_bus(const struct device *dev)
+{
+	struct i2c_gd32_data *data = dev->data;
+	const struct i2c_gd32_config *config = dev->config;
+	struct i2c_bitbang bitbang_ctx;
+	struct i2c_bitbang_io bitbang_io = {
+		.set_scl = i2c_gd32_bitbang_set_scl,
+		.set_sda = i2c_gd32_bitbang_set_sda,
+		.get_sda = i2c_gd32_bitbang_get_sda,
+	};
+	uint32_t device_config = data->dev_config;
+	int ret, ret2;
+
+	LOG_ERR("attempting to recover bus");
+
+	if ((config->scl.port == NULL) || (config->sda.port == NULL)) {
+		LOG_ERR("SCL and/or SDA GPIO definition(s) missing for I2C bus recovery");
+		return -ENOSYS;
+	}
+
+	if (!gpio_is_ready_dt(&config->scl)) {
+		LOG_ERR("SCL GPIO device not ready");
+		return -EIO;
+	}
+
+	if (!gpio_is_ready_dt(&config->sda)) {
+		LOG_ERR("SDA GPIO device not ready");
+		return -EIO;
+	}
+
+	k_sem_take(&data->bus_mutex, K_FOREVER);
+
+	ret = gpio_pin_configure_dt(&config->scl, GPIO_OUTPUT_HIGH);
+	if (ret != 0) {
+		LOG_ERR("failed to configure SCL GPIO (err %d)", ret);
+		goto restore;
+	}
+
+	ret = gpio_pin_configure_dt(&config->sda, GPIO_OUTPUT_HIGH);
+	if (ret != 0) {
+		LOG_ERR("failed to configure SDA GPIO (err %d)", ret);
+		goto restore;
+	}
+
+	i2c_bitbang_init(&bitbang_ctx, &bitbang_io, (void *)config);
+
+	/* Use Fast speed (highest supported by bitbang) if not standard
+	 * speed (bitbang default).
+	 */
+	switch (I2C_SPEED_GET(device_config)) {
+	case I2C_SPEED_STANDARD:
+		break;
+	case I2C_SPEED_DT:
+		if (config->bitrate == I2C_BITRATE_STANDARD) {
+			break;
+		}
+		__fallthrough;
+	default:
+		ret = i2c_bitbang_configure(&bitbang_ctx,
+					    I2C_SPEED_SET(I2C_SPEED_FAST));
+		if (ret != 0) {
+			LOG_ERR("failed to configure I2C bitbang (err %d)", ret);
+			goto restore;
+		}
+	}
+
+	ret = i2c_bitbang_recover_bus(&bitbang_ctx);
+	if (ret != 0) {
+		LOG_ERR("failed to recover bus (err %d)", ret);
+	}
+
+restore:
+	ret2 = pinctrl_apply_state(config->pcfg, PINCTRL_STATE_DEFAULT);
+	if (ret2 != 0) {
+		k_sem_give(&data->bus_mutex);
+		return (ret != 0) ? ret : ret2;
+	}
+
+	/* Re-initialize the I2C peripheral after GPIO-based bus recovery. */
+	ret2 = i2c_gd32_runtime_configure(dev, device_config);
+	if (ret2 != 0) {
+		LOG_ERR("failed to restore I2C peripheral after bus recovery: %d",
+			ret2);
+		if (ret == 0) {
+			ret = ret2;
+		}
+	}
+
+	k_sem_give(&data->bus_mutex);
+
+	return ret;
+}
+#endif /* CONFIG_I2C_GD32_BUS_RECOVERY */
+
 static DEVICE_API(i2c, i2c_gd32_driver_api) = {
 	.configure = i2c_gd32_configure,
 	.transfer = i2c_gd32_transfer,
+#ifdef CONFIG_I2C_GD32_BUS_RECOVERY
+	.recover_bus = i2c_gd32_recover_bus,
+#endif /* CONFIG_I2C_GD32_BUS_RECOVERY */
 #ifdef CONFIG_I2C_RTIO
 	.iodev_submit = i2c_iodev_submit_fallback,
 #endif
@@ -707,6 +843,11 @@ static int i2c_gd32_init(const struct device *dev)
 		.reset = RESET_DT_SPEC_INST_GET(inst),				\
 		.pcfg = PINCTRL_DT_INST_DEV_CONFIG_GET(inst),			\
 		.irq_cfg_func = i2c_gd32_irq_cfg_func_##inst,			\
+		IF_ENABLED(CONFIG_I2C_GD32_BUS_RECOVERY,			\
+			   (.scl = GPIO_DT_SPEC_INST_GET_OR(inst, scl_gpios,	\
+							    {0}),		\
+			    .sda = GPIO_DT_SPEC_INST_GET_OR(inst, sda_gpios,	\
+							    {0}),))		\
 	};									\
 	I2C_DEVICE_DT_INST_DEFINE(inst,						\
 				  i2c_gd32_init, NULL,				\
